@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nebula OS - Ultra Smooth Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --neon: #bc13fe;
+            --dark-purple: #4b0082;
+            --glass: rgba(255, 255, 255, 0.06);
+            --glass-border: rgba(188, 19, 254, 0.5);
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background: #000; color: white;
+            font-family: 'Roboto', sans-serif; overflow: hidden;
+        }
+
+        /* Canvas mehr in den Vordergrund durch höhere Opacity der Linien */
+        #nebulaCanvas { position: fixed; top: 0; left: 0; z-index: 1; }
+
+        .os-wrapper {
+            position: relative; z-index: 10;
+            display: flex; width: 100vw; height: 100vh;
+            pointer-events: none; /* Klicks gehen durch zum Canvas für den Sound */
+        }
+        
+        .sidebar, .main-content, .app-card, .download-btn { pointer-events: auto; }
+
+        /* Sidebar */
+        .sidebar {
+            width: 95px; background: rgba(0, 0, 0, 0.85);
+            border-right: 1px solid var(--glass-border);
+            display: flex; flex-direction: column; align-items: center;
+            padding-top: 30px; gap: 20px; backdrop-filter: blur(20px);
+        }
+
+        .nav-item {
+            width: 65px; height: 65px; border-radius: 18px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.3s;
+            background: var(--glass); border: 1px solid transparent;
+            font-family: 'Orbitron'; font-weight: bold; font-size: 1.4rem; color: #555;
+        }
+
+        .rgb-glow { animation: rgbShift 4s infinite linear; border: 1px solid currentColor; }
+
+        @keyframes rgbShift {
+            0% { color: #ff0000; box-shadow: 0 0 15px #ff0000; }
+            33% { color: #00ff00; box-shadow: 0 0 15px #00ff00; }
+            66% { color: #0000ff; box-shadow: 0 0 15px #0000ff; }
+            100% { color: #ff0000; box-shadow: 0 0 15px #ff0000; }
+        }
+
+        .nav-item.active { background: var(--neon); color: white !important; box-shadow: 0 0 30px var(--neon); animation: none; border: none; }
+        .nav-item img { width: 30px; filter: invert(1); }
+
+        /* Header */
+        .page-header {
+            font-family: 'Orbitron'; font-size: 4rem; letter-spacing: 15px;
+            margin-bottom: 50px; text-align: center; font-weight: 700;
+        }
+
+        .header-fade { animation: nebulaFade 3s infinite alternate ease-in-out; }
+
+        @keyframes nebulaFade {
+            0% { color: #ffffff; text-shadow: 0 0 15px #fff; }
+            100% { color: var(--dark-purple); text-shadow: 0 0 40px var(--neon); }
+        }
+
+        .header-rgb { animation: rgbText 3s infinite linear; text-shadow: 0 0 30px currentColor; }
+        @keyframes rgbText { 0% { color: #ff0000; } 33% { color: #00ff00; } 66% { color: #0000ff; } 100% { color: #ff0000; } }
+
+        /* App Grid */
+        .app-grid {
+            width: 100%; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 25px; align-content: flex-start; overflow-y: auto; padding: 10px;
+        }
+
+        .app-card {
+            background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border);
+            padding: 25px; border-radius: 25px; text-align: center;
+            cursor: pointer; transition: 0.3s; backdrop-filter: blur(5px);
+        }
+
+        .app-card:hover { background: rgba(188, 19, 254, 0.15); transform: translateY(-5px); }
+
+        /* Details */
+        .details-panel {
+            width: 450px; background: rgba(0, 0, 0, 0.9); border: 1px solid var(--glass-border);
+            border-radius: 40px; padding: 40px; display: flex; flex-direction: column; align-items: center;
+            opacity: 0; transform: translateX(40px); transition: 0.5s; backdrop-filter: blur(30px);
+        }
+        .details-panel.visible { opacity: 1; transform: translateX(0); }
+
+        .download-btn { width: 100%; padding: 20px; background: var(--neon); border-radius: 40px; color: white; font-family: 'Orbitron'; text-decoration: none; text-align: center; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<canvas id="nebulaCanvas"></canvas>
+
+<div class="os-wrapper">
+    <nav class="sidebar">
+        <div class="nav-item active" onclick="switchTab('home', this)"><img src="https://img.icons8.com/material-rounded/48/home.png"></div>
+        <div class="nav-item" onclick="switchTab('acc', this)"><img src="https://img.icons8.com/material-rounded/48/user.png"></div>
+        <div class="nav-item rgb-glow" onclick="switchTab('java', this)">J</div>
+        <div class="nav-item rgb-glow" onclick="switchTab('bedrock', this)">B</div>
+    </nav>
+
+    <main class="main-content" style="flex: 1; display: flex; padding: 40px; gap: 40px;">
+        <div class="content-area" style="flex: 1; display: flex; flex-direction: column; align-items: center;">
+            <div id="main-header" class="page-header header-fade">NEBULA OS</div>
+            <div id="app-grid" class="app-grid"></div>
+        </div>
+
+        <div id="details" class="details-panel">
+            <img id="det-img" src="" style="width:160px; border-radius:20px; margin-bottom:20px; border:2px solid var(--neon);">
+            <h2 id="det-title" style="font-family:Orbitron;"></h2>
+            <p id="det-desc" style="color:#ccc; font-size:0.9rem; text-align:center;"></p>
+            <a id="det-link" href="#" class="download-btn">DOWNLOAD</a>
+        </div>
+    </main>
+</div>
+
+<script>
+    // THOCK SOUND - Direkter von einem CDN
+    const thock = new Audio('https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3');
+    thock.volume = 0.6;
+
+    const canvas = document.getElementById('nebulaCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+
+    let particles = [];
+    let allApps = [];
+
+    class Particle {
+        constructor() {
+            this.x = Math.random() * canvas.width;
+            this.y = Math.random() * canvas.height;
+            this.vx = (Math.random() - 0.5) * 0.1; // Ganz ruhige Eigenbewegung
+            this.vy = (Math.random() - 0.5) * 0.1;
+        }
+        update() {
+            this.x += this.vx; this.y += this.vy;
+            this.vx *= 0.99; this.vy *= 0.99; // Reibung
+
+            if(Math.abs(this.vx) < 0.05) this.vx += (Math.random()-0.5)*0.01;
+            if(Math.abs(this.vy) < 0.05) this.vy += (Math.random()-0.5)*0.01;
+
+            if(this.x<0 || this.x>canvas.width) this.vx *= -1;
+            if(this.y<0 || this.y>canvas.height) this.vy *= -1;
+        }
+    }
+
+    for(let i=0; i<80; i++) particles.push(new Particle());
+
+    function draw() {
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        particles.forEach((p, i) => {
+            p.update();
+            ctx.fillStyle = "rgba(188, 19, 254, 0.8)"; // Heller hervorgehoben
+            ctx.beginPath(); ctx.arc(p.x, p.y, 2.5, 0, Math.PI*2); ctx.fill();
+            for(let j=i+1; j<particles.length; j++) {
+                let p2 = particles[j];
+                let d = Math.hypot(p.x-p2.x, p.y-p2.y);
+                if(d < 180) { // Linien-Reichweite erhöht
+                    ctx.strokeStyle = `rgba(188, 19, 254, ${0.4 * (1 - d/180)})`;
+                    ctx.lineWidth = 1.2; // Linien dicker
+                    ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+                }
+            }
+        });
+        requestAnimationFrame(draw);
+    }
+    draw();
+
+    // SMOOTH DRIFT & THOCK
+    window.addEventListener('mousedown', (e) => {
+        thock.currentTime = 0; 
+        thock.play().catch(() => console.log("Sound erst nach Klick erlaubt"));
+
+        particles.forEach(p => {
+            let d = Math.hypot(p.x-e.clientX, p.y-e.clientY);
+            if(d < 300) {
+                let force = (300 - d) * 0.0002; // ULTRA LANGSAM (vorher 0.0008)
+                p.vx += (p.x - e.clientX) * force;
+                p.vy += (p.y - e.clientY) * force;
+            }
+        });
+    });
+
+    // Daten laden
+    fetch('data.json').then(res => res.json()).then(data => {
+        allApps = data.apps;
+        renderApps('home');
+    });
+
+    function switchTab(cat, el) {
+        thock.currentTime = 0; thock.play().catch(()=>{});
+        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        el.classList.add('active');
+        const header = document.getElementById('main-header');
+        if(cat === 'home') { header.innerText = "NEBULA OS"; header.className = "page-header header-fade"; }
+        else if(cat === 'java') { header.innerText = "JAVA EDITION"; header.className = "page-header header-rgb"; }
+        else if(cat === 'bedrock') { header.innerText = "BEDROCK EDITION"; header.className = "page-header header-rgb"; }
+        else { header.innerText = "ACCOUNT GEN"; header.className = "page-header header-fade"; }
+        renderApps(cat);
+    }
+
+    function renderApps(category) {
+        const grid = document.getElementById('app-grid');
+        grid.innerHTML = '';
+        const filtered = allApps.filter(app => {
+            if(category === 'home') return true;
+            return app.tags.some(t => t.toLowerCase().includes(category));
+        });
+        filtered.forEach(app => {
+            const card = document.createElement('div');
+            card.className = 'app-card';
+            card.innerHTML = `<img src="${app.img}" style="width:60px; height:60px; border-radius:10px; margin-bottom:10px;"><div style="font-family:Orbitron; font-size:0.8rem;">${app.name}</div>`;
+            card.onclick = (e) => {
+                e.stopPropagation();
+                thock.currentTime = 0; thock.play().catch(()=>{});
+                showDetails(app);
+            };
+            grid.appendChild(card);
+        });
+    }
+
+    function showDetails(app) {
+        const panel = document.getElementById('details');
+        panel.classList.remove('visible');
+        setTimeout(() => {
+            document.getElementById('det-img').src = app.img;
+            document.getElementById('det-title').innerText = app.name;
+            document.getElementById('det-desc').innerText = app.desc;
+            document.getElementById('det-link').href = app.url;
+            panel.classList.add('visible');
+        }, 100);
+    }
+
+    window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+</script>
+</body>
+</html>
