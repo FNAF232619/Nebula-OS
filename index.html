@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nebula OS</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --neon: #bc13fe;
+    --neon2: #00d2ff;
+    --glass: rgba(255,255,255,0.05);
+    --glass-border: rgba(188,19,254,0.45);
+    --sidebar-w: 90px;
+    --header-h: 60px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #000;
+    color: #fff;
+    font-family: 'Rajdhani', sans-serif;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+  }
+
+  /* ─── Canvas ─── */
+  #bgCanvas {
+    position: fixed; inset: 0; z-index: 1;
+    pointer-events: none;
+    width: 100%; height: 100%;
+  }
+
+  /* ─── Layout ─── */
+  .os-shell {
+    position: relative; z-index: 10;
+    display: flex;
+    width: 100vw; height: 100vh;
+  }
+
+  /* ─── Sidebar ─── */
+  .sidebar {
+    width: var(--sidebar-w);
+    min-width: var(--sidebar-w);
+    background: rgba(0,0,0,0.94);
+    border-right: 1px solid var(--glass-border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 0;
+    gap: 14px;
+    backdrop-filter: blur(24px);
+    z-index: 200;
+    transition: width .3s;
+  }
+
+  .logo-mark {
+    font-family: 'Orbitron';
+    font-size: .65rem;
+    font-weight: 900;
+    letter-spacing: 3px;
+    color: var(--neon);
+    text-shadow: 0 0 12px var(--neon);
+    margin-bottom: 8px;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    opacity: .5;
+  }
+
+  .nav-item {
+    width: 58px; height: 58px;
+    border-radius: 16px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: all .25s;
+    background: transparent;
+    border: 1px solid transparent;
+    font-family: 'Orbitron';
+    font-weight: 900;
+    font-size: 1.2rem;
+    color: rgba(255,255,255,.55);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .nav-item:hover { color: #fff; border-color: var(--glass-border); background: var(--glass); }
+  .nav-item.active {
+    background: linear-gradient(135deg, rgba(188,19,254,.25), rgba(0,210,255,.1));
+    border-color: var(--neon);
+    color: #fff;
+    box-shadow: 0 0 20px rgba(188,19,254,.4), inset 0 0 10px rgba(188,19,254,.1);
+  }
+  .nav-item .nav-label {
+    font-size: .45rem;
+    letter-spacing: 1px;
+    opacity: .7;
+    font-family: 'Rajdhani';
+  }
+  .nav-item img { width: 26px; height: 26px; filter: brightness(0) invert(1); opacity: .75; }
+  .nav-item.active img { opacity: 1; }
+
+  /* ARGB nav items */
+  .nav-item.argb { animation: argbAnim 4s linear infinite; }
+  @keyframes argbAnim {
+    0%   { color: #ff4444; border-color: #ff4444; }
+    33%  { color: #44ff88; border-color: #44ff88; }
+    66%  { color: #4488ff; border-color: #4488ff; }
+    100% { color: #ff4444; border-color: #ff4444; }
+  }
+  .nav-item.argb.active { animation: argbActive 4s linear infinite; }
+  @keyframes argbActive {
+    0%   { background: rgba(255,68,68,.2); border-color: #ff4444; box-shadow: 0 0 20px rgba(255,68,68,.4); }
+    33%  { background: rgba(68,255,136,.2); border-color: #44ff88; box-shadow: 0 0 20px rgba(68,255,136,.4); }
+    66%  { background: rgba(68,136,255,.2); border-color: #4488ff; box-shadow: 0 0 20px rgba(68,136,255,.4); }
+    100% { background: rgba(255,68,68,.2); border-color: #ff4444; box-shadow: 0 0 20px rgba(255,68,68,.4); }
+  }
+
+  /* ─── Main area ─── */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    height: 100vh;
+  }
+
+  .top-bar {
+    height: var(--header-h);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px;
+    border-bottom: 1px solid var(--glass-border);
+    background: rgba(0,0,0,.6);
+    backdrop-filter: blur(20px);
+    flex-shrink: 0;
+  }
+
+  .page-title {
+    font-family: 'Orbitron';
+    font-size: clamp(1rem, 3vw, 2rem);
+    font-weight: 900;
+    letter-spacing: 8px;
+    animation: titleGlow 3s ease-in-out infinite alternate;
+  }
+  @keyframes titleGlow {
+    0%   { color: #fff; text-shadow: 0 0 8px #fff; }
+    100% { color: var(--neon); text-shadow: 0 0 24px var(--neon), 0 0 48px rgba(188,19,254,.3); }
+  }
+
+  .search-box {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 30px;
+    padding: 8px 16px;
+    backdrop-filter: blur(10px);
+  }
+  .search-box input {
+    background: none; border: none; outline: none;
+    color: #fff; font-family: 'Rajdhani'; font-size: .95rem; width: 180px;
+  }
+  .search-box input::placeholder { color: rgba(255,255,255,.35); }
+  .search-icon { opacity: .5; font-size: .9rem; }
+
+  /* ─── Content ─── */
+  .content-wrap {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    position: relative;
+  }
+
+  .page { display: none; flex: 1; flex-direction: column; min-width: 0; }
+  .page.active { display: flex; }
+
+  /* ─── App grid ─── */
+  .app-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 16px;
+    padding: 24px;
+    overflow-y: auto;
+    align-content: start;
+  }
+  .app-grid::-webkit-scrollbar { width: 4px; }
+  .app-grid::-webkit-scrollbar-track { background: transparent; }
+  .app-grid::-webkit-scrollbar-thumb { background: var(--neon); border-radius: 2px; }
+
+  .app-card {
+    background: rgba(255,255,255,.03);
+    border: 1px solid rgba(188,19,254,.3);
+    border-radius: 18px;
+    padding: 18px 12px 14px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s;
+    position: relative;
+    backdrop-filter: blur(4px);
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+  }
+  .app-card:hover {
+    border-color: var(--neon);
+    box-shadow: 0 0 20px rgba(188,19,254,.25);
+    transform: translateY(-2px);
+    background: rgba(188,19,254,.06);
+  }
+
+  .version-tag {
+    position: absolute; top: 8px; left: 10px;
+    font-family: 'Orbitron'; font-size: .55rem;
+    color: rgba(255,255,255,.5);
+    letter-spacing: 1px;
+  }
+
+  .icon-wrap {
+    width: 64px; height: 64px; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .icon-wrap img {
+    width: 100%; height: 100%;
+    object-fit: contain; border-radius: 12px;
+    position: absolute; inset: 0;
+    display: none;
+  }
+  .icon-wrap img.loaded { display: block; }
+
+  .neon-letter {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Orbitron'; font-size: 1.8rem; font-weight: 900;
+    border: 2px solid currentColor;
+    border-radius: 14px;
+    animation: neonLetterAnim 4s ease-in-out infinite alternate;
+  }
+  @keyframes neonLetterAnim {
+    0%   { color: var(--neon); box-shadow: 0 0 8px var(--neon); }
+    50%  { color: #ff00ff; box-shadow: 0 0 16px #ff00ff; }
+    100% { color: var(--neon2); box-shadow: 0 0 12px var(--neon2); }
+  }
+
+  .app-name {
+    font-family: 'Orbitron'; font-size: .72rem;
+    font-weight: 700; letter-spacing: .5px;
+    line-height: 1.3;
+    word-break: break-word;
+  }
+
+  /* ─── Details panel ─── */
+  .details-panel {
+    width: 380px;
+    min-width: 280px;
+    background: rgba(0,0,0,.97);
+    border-left: 1px solid var(--glass-border);
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    position: relative;
+    backdrop-filter: blur(40px);
+    overflow: hidden; /* panel itself does NOT scroll */
+    flex-shrink: 0;
+  }
+  .details-panel.open { display: flex; animation: slideIn .35s ease-out; }
+  @keyframes slideIn { from { opacity:0; transform: translateX(30px); } to { opacity:1; transform: translateX(0); } }
+
+  /* Scrollable middle section */
+  .det-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 36px 28px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  .det-scroll::-webkit-scrollbar { width: 3px; }
+  .det-scroll::-webkit-scrollbar-thumb { background: var(--neon); border-radius: 2px; }
+
+  /* Pinned bottom bar with download button */
+  .det-footer {
+    padding: 16px 28px 24px;
+    border-top: 1px solid var(--glass-border);
+    background: rgba(0,0,0,.97);
+    flex-shrink: 0;
+  }
+
+  .close-btn {
+    position: absolute; top: 12px; right: 16px;
+    font-size: 1.4rem; color: var(--neon); cursor: pointer;
+    transition: .2s; line-height: 1;
+    background: none; border: none;
+    z-index: 10;
+  }
+  .close-btn:hover { transform: rotate(90deg); }
+
+  .det-icon {
+    width: 120px; height: 120px; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .det-icon img {
+    width: 100%; height: 100%; object-fit: contain;
+    border-radius: 22px; border: 2px solid var(--neon);
+    box-shadow: 0 0 20px rgba(188,19,254,.3);
+    position: absolute; inset: 0; display: none;
+  }
+  .det-icon img.loaded { display: block; }
+  .det-icon .neon-letter { font-size: 3.5rem; border-radius: 22px; }
+
+  .det-title { font-family: 'Orbitron'; font-size: 1.2rem; font-weight: 900; text-align: center; }
+  .det-desc { color: rgba(255,255,255,.7); font-size: .95rem; line-height: 1.65; text-align: center; }
+  .det-tags {
+    display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+  }
+  .det-tag {
+    font-family: 'Orbitron'; font-size: .6rem; font-weight: 700;
+    padding: 4px 10px; border-radius: 20px;
+    border: 1px solid var(--neon); color: var(--neon);
+    animation: tagPulse 2s ease-in-out infinite alternate;
+  }
+  @keyframes tagPulse { from { opacity:.6; } to { opacity: 1; } }
+
+  .download-btn {
+    width: 100%; padding: 16px;
+    background: linear-gradient(135deg, var(--neon), #7b00d4);
+    border-radius: 40px;
+    color: #fff; font-family: 'Orbitron'; font-weight: 700;
+    font-size: .85rem; letter-spacing: 2px;
+    text-align: center; text-decoration: none;
+    display: block;
+    transition: .2s;
+    box-shadow: 0 0 20px rgba(188,19,254,.4);
+  }
+  .download-btn:hover { box-shadow: 0 0 40px rgba(188,19,254,.7); transform: scale(1.02); }
+
+  /* ─── Clickable links inside descriptions ─── */
+  .det-desc a, .home-about a {
+    color: var(--neon2);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    transition: .15s;
+    word-break: break-all;
+  }
+  .det-desc a:hover, .home-about a:hover { color: #fff; text-shadow: 0 0 8px var(--neon2); }
+
+  /* ─── Home info panel (About / FAQ from JSON) ─── */
+  .home-info {
+    display: none;
+    flex-direction: column;
+    gap: 24px;
+    padding: 28px 28px 0;
+    max-width: 720px;
+    width: 100%;
+    margin: 0 auto;
+    flex-shrink: 0;
+  }
+  .home-info.show { display: flex; }
+
+  .home-section {
+    background: rgba(255,255,255,.03);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    padding: 24px 28px;
+  }
+  .home-section h2 {
+    font-family: 'Orbitron'; font-size: .8rem; font-weight: 700;
+    letter-spacing: 4px; color: var(--neon);
+    text-shadow: 0 0 12px rgba(188,19,254,.4);
+    margin-bottom: 14px; text-transform: uppercase;
+  }
+  .home-about {
+    color: rgba(255,255,255,.75); font-size: .95rem; line-height: 1.75;
+    white-space: pre-wrap;
+  }
+  .faq-item { margin-bottom: 16px; }
+  .faq-item:last-child { margin-bottom: 0; }
+  .faq-q {
+    font-family: 'Orbitron'; font-size: .7rem; font-weight: 700;
+    color: #fff; letter-spacing: 1px; margin-bottom: 6px;
+  }
+  .faq-a {
+    color: rgba(255,255,255,.65); font-size: .9rem; line-height: 1.6;
+    padding-left: 14px; border-left: 2px solid var(--glass-border);
+    white-space: pre-wrap;
+  }
+  .faq-a a { color: var(--neon2); text-decoration: underline; text-underline-offset: 3px; }
+  .faq-a a:hover { color: #fff; }
+  .empty-state {
+    display: none; flex-direction: column; align-items: center;
+    justify-content: center; gap: 16px;
+    color: rgba(255,255,255,.3); flex: 1;
+    font-family: 'Orbitron'; font-size: .8rem; letter-spacing: 2px;
+  }
+  .empty-state.show { display: flex; }
+  .empty-icon { font-size: 3rem; opacity: .3; }
+
+  /* ─── Account page ─── */
+  .acc-page {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 20px;
+    color: rgba(255,255,255,.25);
+    font-family: 'Orbitron'; letter-spacing: 4px; font-size: .8rem;
+  }
+  .acc-icon { font-size: 4rem; opacity: .15; }
+
+  /* ─── Settings page ─── */
+  .settings-page {
+    flex: 1; display: flex; flex-direction: column;
+    gap: 0; overflow-y: auto; padding: 30px;
+  }
+  .settings-page::-webkit-scrollbar { width: 4px; }
+  .settings-page::-webkit-scrollbar-thumb { background: var(--neon); border-radius: 2px; }
+
+  .settings-section {
+    border: 1px solid var(--glass-border);
+    border-radius: 20px; padding: 24px;
+    background: rgba(255,255,255,.02);
+    margin-bottom: 20px;
+  }
+  .settings-section h3 {
+    font-family: 'Orbitron'; font-size: .75rem; letter-spacing: 3px;
+    color: var(--neon); margin-bottom: 18px;
+    text-transform: uppercase;
+  }
+
+  .bg-options { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  .bg-option {
+    border: 2px solid rgba(255,255,255,.1);
+    border-radius: 14px; padding: 16px 12px;
+    cursor: pointer; transition: .2s;
+    text-align: center;
+    background: rgba(255,255,255,.02);
+  }
+  .bg-option:hover { border-color: var(--neon); background: rgba(188,19,254,.08); }
+  .bg-option.selected { border-color: var(--neon); box-shadow: 0 0 16px rgba(188,19,254,.3); background: rgba(188,19,254,.1); }
+  .bg-option .opt-preview {
+    height: 60px; border-radius: 8px; margin-bottom: 10px;
+    overflow: hidden; position: relative;
+  }
+  .opt-preview-1 { background: radial-gradient(ellipse at center, rgba(188,19,254,.3) 0%, #000 70%); }
+  .opt-preview-2 { background: radial-gradient(ellipse at bottom, rgba(0,100,255,.4) 0%, #000 70%); }
+  .bg-option .opt-name { font-family: 'Orbitron'; font-size: .65rem; letter-spacing: 2px; color: rgba(255,255,255,.7); }
+
+  .settings-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,.05);
+  }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-row label { font-size: .9rem; color: rgba(255,255,255,.75); }
+  .settings-row span { font-family: 'Orbitron'; font-size: .65rem; color: var(--neon); letter-spacing: 1px; }
+
+  /* ─── Loading ─── */
+  .loader {
+    position: fixed; inset: 0; z-index: 999;
+    background: #000; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 20px;
+    transition: opacity .5s;
+  }
+  .loader.hidden { opacity: 0; pointer-events: none; }
+  .loader-title { font-family: 'Orbitron'; font-size: 2.5rem; font-weight: 900; letter-spacing: 12px; color: var(--neon); text-shadow: 0 0 30px var(--neon); }
+  .loader-bar { width: 200px; height: 2px; background: rgba(255,255,255,.1); border-radius: 1px; overflow: hidden; }
+  .loader-progress { height: 100%; background: var(--neon); animation: loadBar 1.2s ease-in-out forwards; box-shadow: 0 0 10px var(--neon); }
+  @keyframes loadBar { from { width: 0; } to { width: 100%; } }
+  .loader-sub { font-family: 'Orbitron'; font-size: .6rem; letter-spacing: 4px; color: rgba(255,255,255,.3); }
+
+  /* ─── Mobile hamburger ─── */
+  .hamburger {
+    display: none; background: none; border: none;
+    color: var(--neon); font-size: 1.4rem; cursor: pointer;
+    padding: 8px;
+  }
+
+  /* ─── Responsive ─── */
+  @media (max-width: 768px) {
+    :root { --sidebar-w: 0px; }
+
+    .sidebar {
+      position: fixed; left: -80px; top: 0; bottom: 0;
+      width: 80px; z-index: 300;
+      transition: left .3s;
+      padding-top: 70px;
+    }
+    .sidebar.open { left: 0; }
+
+    .hamburger { display: flex; align-items: center; justify-content: center; }
+
+    .app-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); padding: 16px; gap: 12px; }
+
+    .details-panel {
+      position: fixed; inset: 0; width: 100%; max-width: 100%;
+      z-index: 250; padding: 60px 24px 24px;
+    }
+
+    .search-box input { width: 120px; }
+    .logo-mark { display: none; }
+    .bg-options { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 480px) {
+    .app-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 12px; }
+    .page-title { letter-spacing: 4px; }
+    .search-box { display: none; }
+  }
+
+  @media (min-width: 1400px) {
+    .app-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+  }
+</style>
+</head>
+<body>
+
+<!-- Loading Screen -->
+<div class="loader" id="loader">
+  <div class="loader-title">NEBULA OS</div>
+  <div class="loader-bar"><div class="loader-progress"></div></div>
+  <div class="loader-sub">INITIALIZING SYSTEM...</div>
+</div>
+
+<canvas id="bgCanvas"></canvas>
+
+<div class="os-shell">
+
+  <!-- Sidebar -->
+  <nav class="sidebar" id="sidebar">
+    <div class="logo-mark">NOS</div>
+    <div class="nav-item active" id="nav-home" onclick="switchTab('home',this)">
+      <img src="https://img.icons8.com/material-rounded/48/home.png" alt="">
+      <span class="nav-label">HOME</span>
+    </div>
+    <div class="nav-item" id="nav-acc" onclick="switchTab('acc',this)">
+      <img src="https://img.icons8.com/material-rounded/48/user.png" alt="">
+      <span class="nav-label">ACC</span>
+    </div>
+    <div class="nav-item argb" id="nav-java" onclick="switchTab('java',this)">
+      J<span class="nav-label">JAVA</span>
+    </div>
+    <div class="nav-item argb" id="nav-bedrock" onclick="switchTab('bedrock',this)">
+      B<span class="nav-label">BEDROCK</span>
+    </div>
+    <div class="nav-item" id="nav-settings" onclick="switchTab('settings',this)">
+      ⚙<span class="nav-label">SET</span>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Top bar -->
+    <div class="top-bar">
+      <button class="hamburger" id="hamburger" onclick="toggleSidebar()" aria-label="Menu">☰</button>
+      <div class="page-title" id="page-title">NEBULA OS</div>
+      <div class="search-box">
+        <span class="search-icon">⌕</span>
+        <input type="text" id="searchInput" placeholder="Search..." oninput="filterApps()">
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content-wrap">
+
+      <!-- Home page -->
+      <div class="page active" id="page-home" style="flex-direction:column; overflow-y:auto;">
+        <!-- About / FAQ from JSON "Home" app — shown when that app exists -->
+        <div class="home-info" id="home-info">
+          <div class="home-section" id="home-about-section">
+            <h2>⬡ About Us</h2>
+            <div class="home-about" id="home-about-text"></div>
+          </div>
+          <div class="home-section" id="home-faq-section" style="display:none;">
+            <h2>⬡ FAQ</h2>
+            <div id="home-faq-list"></div>
+          </div>
+        </div>
+        <!-- App grid below info panel -->
+        <div class="app-grid" id="grid-home" style="overflow-y:unset; padding-bottom:30px;"></div>
+        <div class="empty-state" id="empty-home">
+          <div class="empty-icon">◈</div>
+          <div>NO APPS FOUND</div>
+        </div>
+      </div>
+
+      <!-- Account page -->
+      <div class="page" id="page-acc">
+        <div class="acc-page">
+          <div class="acc-icon">👤</div>
+          <div>ACCOUNT GENERATOR</div>
+          <div style="font-size:.6rem; opacity:.5;">COMING SOON</div>
+        </div>
+      </div>
+
+      <!-- Java page -->
+      <div class="page" id="page-java">
+        <div class="app-grid" id="grid-java"></div>
+        <div class="empty-state" id="empty-java">
+          <div class="empty-icon">◈</div>
+          <div>NO JAVA APPS</div>
+        </div>
+      </div>
+
+      <!-- Bedrock page -->
+      <div class="page" id="page-bedrock">
+        <div class="app-grid" id="grid-bedrock"></div>
+        <div class="empty-state" id="empty-bedrock">
+          <div class="empty-icon">◈</div>
+          <div>NO BEDROCK APPS</div>
+        </div>
+      </div>
+
+      <!-- Settings page -->
+      <div class="page" id="page-settings">
+        <div class="settings-page">
+          <div class="settings-section">
+            <h3>⬡ Background Animation</h3>
+            <div class="bg-options">
+              <div class="bg-option selected" id="bg-opt-1" onclick="setBg(1)">
+                <div class="opt-preview opt-preview-1"></div>
+                <div class="opt-name">NEBULA WAVE</div>
+                <div style="font-size:.6rem; color:rgba(255,255,255,.35); margin-top:4px;">Particles · Lines · Mouse</div>
+              </div>
+              <div class="bg-option" id="bg-opt-2" onclick="setBg(2)">
+                <div class="opt-preview opt-preview-2"></div>
+                <div class="opt-name">BLUE RISE</div>
+                <div style="font-size:.6rem; color:rgba(255,255,255,.35); margin-top:4px;">Bubbles · Glow · Mouse</div>
+              </div>
+            </div>
+          </div>
+          <div class="settings-section">
+            <h3>⬡ System Info</h3>
+            <div class="settings-row">
+              <label>Version</label>
+              <span id="info-version">—</span>
+            </div>
+            <div class="settings-row">
+              <label>Apps Loaded</label>
+              <span id="info-count">0</span>
+            </div>
+            <div class="settings-row">
+              <label>Java Apps</label>
+              <span id="info-java">0</span>
+            </div>
+            <div class="settings-row">
+              <label>Bedrock Apps</label>
+              <span id="info-bedrock">0</span>
+            </div>
+            <div class="settings-row">
+              <label>Data Source</label>
+              <span>data.json</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Details panel -->
+      <div class="details-panel" id="detailsPanel">
+        <button class="close-btn" onclick="closeDetails()">✕</button>
+        <!-- Scrollable content -->
+        <div class="det-scroll">
+          <div class="det-icon" id="detIcon">
+            <div class="neon-letter" id="detLetter">?</div>
+            <img id="detImg" src="" alt="">
+          </div>
+          <div class="det-title" id="detTitle"></div>
+          <p class="det-desc" id="detDesc"></p>
+          <div class="det-tags" id="detTags"></div>
+        </div>
+        <!-- Pinned download button -->
+        <div class="det-footer">
+          <a class="download-btn" id="detLink" href="#" target="_blank" rel="noopener">⬇ DOWNLOAD</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ──────────────────────────────────────────────
+// STATE
+// ──────────────────────────────────────────────
+let allApps = [];
+let currentTab = 'home';
+let currentBg = 1;
+let searchQuery = '';
+
+// ──────────────────────────────────────────────
+// BG ANIMATIONS
+// ──────────────────────────────────────────────
+const canvas = document.getElementById('bgCanvas');
+const ctx = canvas.getContext('2d');
+let W, H;
+let mouse = { x: -999, y: -999 };
+let animId;
+
+function resizeCanvas() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+window.addEventListener('touchmove', e => { mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; }, { passive: true });
+
+// ── BG 1: Nebula Wave (purple particles + connecting lines) ──
+const P1 = [];
+class Particle1 {
+  constructor() { this.reset(true); }
+  reset(init) {
+    this.x = Math.random() * W;
+    this.y = init ? Math.random() * H : Math.random() * H;
+    this.vx = (Math.random() - .5) * .5;
+    this.vy = (Math.random() - .5) * .5;
+    this.r = Math.random() * 2.5 + 1;
+    this.hue = Math.random() * 60 - 30; // slight hue variance around purple
+  }
+  update() {
+    const dx = mouse.x - this.x, dy = mouse.y - this.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 200) {
+      const f = (200 - dist) / 200;
+      this.x -= dx / dist * f * 3.5;
+      this.y -= dy / dist * f * 3.5;
+    }
+    this.x += this.vx; this.y += this.vy;
+    if (this.x < 0 || this.x > W) this.vx *= -1;
+    if (this.y < 0 || this.y > H) this.vy *= -1;
+  }
+}
+for (let i = 0; i < 110; i++) P1.push(new Particle1());
+
+let bg1Time = 0;
+function drawBg1() {
+  bg1Time += .005;
+  // Slow-fade trail instead of full clear for motion blur effect
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.fillRect(0, 0, W, H);
+
+  // Ambient centre nebula glow
+  const cx = W / 2 + Math.sin(bg1Time * .7) * W * .15;
+  const cy = H / 2 + Math.cos(bg1Time * .5) * H * .1;
+  const gr = ctx.createRadialGradient(cx, cy, 0, cx, cy, W * .45);
+  gr.addColorStop(0, 'rgba(188,19,254,0.07)');
+  gr.addColorStop(0.5, 'rgba(100,0,200,0.03)');
+  gr.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = gr;
+  ctx.fillRect(0, 0, W, H);
+
+  // Mouse proximity glow
+  if (mouse.x > 0) {
+    const mg = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 140);
+    mg.addColorStop(0, 'rgba(188,19,254,0.12)');
+    mg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = mg;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  for (let i = 0; i < P1.length; i++) {
+    P1[i].update();
+    const p = P1[i];
+    // Glow halo around each particle
+    const pg = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 5);
+    pg.addColorStop(0, `hsla(${280 + p.hue},100%,70%,0.5)`);
+    pg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = pg;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * 5, 0, Math.PI * 2);
+    ctx.fill();
+    // Core dot
+    ctx.fillStyle = `hsla(${280 + p.hue},100%,85%,0.95)`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+    // Lines
+    for (let j = i + 1; j < P1.length; j++) {
+      const p2 = P1[j];
+      const d = Math.hypot(p.x - p2.x, p.y - p2.y);
+      if (d < 160) {
+        const alpha = .55 * (1 - d / 160);
+        ctx.strokeStyle = `rgba(188,19,254,${alpha})`;
+        ctx.lineWidth = alpha * 1.5;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+      }
+    }
+  }
+  animId = requestAnimationFrame(drawBg1);
+}
+
+// ── BG 2: Blue Rise (bubbles rising, react to mouse) ──
+const P2 = [];
+class Bubble {
+  constructor() { this.init(); }
+  init() {
+    this.x = Math.random() * W;
+    this.y = H + Math.random() * 80;
+    this.r = Math.random() * 7 + 2;
+    this.vy = -(Math.random() * .9 + .4);
+    this.vx = (Math.random() - .5) * .3;
+    this.alpha = Math.random() * .7 + .25;
+    this.wobble = Math.random() * Math.PI * 2;
+    this.wobbleSpeed = Math.random() * .04 + .015;
+    this.hueOffset = Math.random() * 60 - 30;
+  }
+  update() {
+    this.wobble += this.wobbleSpeed;
+    this.x += this.vx + Math.sin(this.wobble) * .5;
+    this.y += this.vy;
+    const dx = mouse.x - this.x, dy = mouse.y - this.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 150) {
+      const f = (150 - dist) / 150;
+      this.x -= dx / dist * f * 3;
+      this.y -= dy / dist * f * 3;
+    }
+    if (this.y < -30) this.init();
+  }
+}
+for (let i = 0; i < 80; i++) {
+  const b = new Bubble();
+  b.y = Math.random() * H;
+  P2.push(b);
+}
+
+let hue2 = 200;
+function drawBg2() {
+  // Motion trail
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
+  ctx.fillRect(0, 0, W, H);
+
+  // Deep bottom glow
+  const grad = ctx.createRadialGradient(W / 2, H, 0, W / 2, H * .8, H);
+  grad.addColorStop(0, 'rgba(0,60,255,0.22)');
+  grad.addColorStop(0.5, 'rgba(0,20,120,0.08)');
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Secondary side glow sweep
+  const sg = ctx.createLinearGradient(0, H, W, 0);
+  sg.addColorStop(0, `hsla(${hue2},100%,50%,0.04)`);
+  sg.addColorStop(1, `hsla(${hue2 + 60},100%,70%,0.02)`);
+  ctx.fillStyle = sg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Mouse glow
+  if (mouse.x > 0) {
+    const mg = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 180);
+    mg.addColorStop(0, `hsla(${hue2},100%,65%,0.15)`);
+    mg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = mg;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  hue2 = (hue2 + .15) % 360;
+  for (const b of P2) {
+    b.update();
+    const bHue = hue2 + b.hueOffset;
+    // Outer glow
+    const bg = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r * 4);
+    bg.addColorStop(0, `hsla(${bHue},100%,70%,${b.alpha * .4})`);
+    bg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r * 4, 0, Math.PI * 2);
+    ctx.fill();
+    // Bubble ring
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    ctx.strokeStyle = `hsla(${bHue},100%,80%,${b.alpha})`;
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    // Inner fill
+    ctx.fillStyle = `hsla(${bHue},100%,90%,${b.alpha * .2})`;
+    ctx.fill();
+    // Specular highlight
+    ctx.beginPath();
+    ctx.arc(b.x - b.r * .3, b.y - b.r * .3, b.r * .3, 0, Math.PI * 2);
+    ctx.fillStyle = `hsla(${bHue},80%,100%,${b.alpha * .5})`;
+    ctx.fill();
+  }
+  animId = requestAnimationFrame(drawBg2);
+}
+
+function startBg(n) {
+  cancelAnimationFrame(animId);
+  currentBg = n;
+  if (n === 1) drawBg1();
+  else drawBg2();
+  document.getElementById('bg-opt-1').classList.toggle('selected', n === 1);
+  document.getElementById('bg-opt-2').classList.toggle('selected', n === 2);
+  try { localStorage.setItem('nebula_bg', n); } catch(e) {}
+}
+
+function setBg(n) { playThock(); startBg(n); }
+
+// ──────────────────────────────────────────────
+// THOCK SOUND — Web Audio API, no external files
+// ──────────────────────────────────────────────
+let audioCtx = null;
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function playThock() {
+  try {
+    const ac = getAudioCtx();
+    // Layered thock: low thud body + sharp transient click + subtle tail
+    const now = ac.currentTime;
+
+    // ── Body: short low sine burst (the "thock" mass) ──
+    const osc = ac.createOscillator();
+    const oscGain = ac.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(180, now);
+    osc.frequency.exponentialRampToValueAtTime(60, now + 0.06);
+    oscGain.gain.setValueAtTime(0.55, now);
+    oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+    osc.connect(oscGain);
+    oscGain.connect(ac.destination);
+    osc.start(now);
+    osc.stop(now + 0.12);
+
+    // ── Transient: very short noise burst for the "click" attack ──
+    const bufSize = ac.sampleRate * 0.015;
+    const buf = ac.createBuffer(1, bufSize, ac.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
+    const noise = ac.createBufferSource();
+    noise.buffer = buf;
+    const noiseFilter = ac.createBiquadFilter();
+    noiseFilter.type = 'bandpass';
+    noiseFilter.frequency.value = 1800;
+    noiseFilter.Q.value = 1.2;
+    const noiseGain = ac.createGain();
+    noiseGain.gain.setValueAtTime(0.25, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.015);
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(ac.destination);
+    noise.start(now);
+
+    // ── Sub bump: very short sub oscillator for satisfying weight ──
+    const sub = ac.createOscillator();
+    const subGain = ac.createGain();
+    sub.type = 'triangle';
+    sub.frequency.setValueAtTime(90, now);
+    sub.frequency.exponentialRampToValueAtTime(30, now + 0.05);
+    subGain.gain.setValueAtTime(0.3, now);
+    subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+    sub.connect(subGain);
+    subGain.connect(ac.destination);
+    sub.start(now);
+    sub.stop(now + 0.08);
+  } catch (e) {
+    // Audio not available, silent fail
+  }
+}
+// ──────────────────────────────────────────────
+// DATA LOADING
+// ──────────────────────────────────────────────
+const JSON_URL = 'https://raw.githubusercontent.com/FNAF232619/Nebula-OS/main/data.json';
+
+async function loadData() {
+  try {
+    const res = await fetch(JSON_URL);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const raw = Array.isArray(data.apps) ? data.apps : [];
+
+    // Special apps — extracted and shown on Home page, never in grids
+    const specialNames = ['home', 'faq'];
+    window._homeApp = raw.find(a => a.name && a.name.trim().toLowerCase() === 'home') || null;
+    window._faqApp  = raw.find(a => a.name && a.name.trim().toLowerCase() === 'faq')  || null;
+    allApps = raw.filter(a => !a.name || !specialNames.includes(a.name.trim().toLowerCase()));
+
+    buildGrids();
+    renderHomeInfo();
+    updateInfoPanel();
+  } catch (e) {
+    console.warn('data.json could not be loaded:', e.message);
+    buildGrids();
+  }
+}
+
+// ──────────────────────────────────────────────
+// HOME INFO PANEL (About from "Home" app, FAQ from "FAQ" app)
+// ──────────────────────────────────────────────
+function linkify(text) {
+  return (text || '')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/(?<!\]\()(https?:\/\/[^\s<>"]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+}
+
+function renderHomeInfo() {
+  const homeApp = window._homeApp;
+  const faqApp  = window._faqApp;
+  const infoEl  = document.getElementById('home-info');
+  const aboutSection = document.getElementById('home-about-section');
+  const aboutEl = document.getElementById('home-about-text');
+  const faqSection = document.getElementById('home-faq-section');
+  const faqList    = document.getElementById('home-faq-list');
+
+  let hasContent = false;
+
+  // ── About Us block (from "Home" app desc) ──
+  if (homeApp && homeApp.desc) {
+    aboutEl.innerHTML = linkify(homeApp.desc);
+    aboutSection.style.display = '';
+    hasContent = true;
+  } else {
+    aboutSection.style.display = 'none';
+  }
+
+  // ── FAQ block (from "FAQ" app desc) ──
+  // The desc of the FAQ app is shown as plain text.
+  // If the FAQ app has a faq[] array, each entry is shown as Q/A pairs.
+  // If it only has a desc, the whole desc is shown as a text block.
+  if (faqApp) {
+    faqList.innerHTML = '';
+
+    if (Array.isArray(faqApp.faq) && faqApp.faq.length > 0) {
+      // Structured Q&A pairs
+      faqApp.faq.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'faq-item';
+        div.innerHTML = `<div class="faq-q">Q: ${item.q || ''}</div><div class="faq-a">${linkify(item.a || '')}</div>`;
+        faqList.appendChild(div);
+      });
+    } else if (faqApp.desc) {
+      // Plain text fallback — just show the desc as a text block
+      const div = document.createElement('div');
+      div.className = 'faq-a';
+      div.style.cssText = 'padding-left:0; border-left:none; white-space:pre-wrap;';
+      div.innerHTML = linkify(faqApp.desc);
+      faqList.appendChild(div);
+    }
+
+    faqSection.style.display = '';
+    hasContent = true;
+  } else {
+    faqSection.style.display = 'none';
+  }
+
+  infoEl.classList.toggle('show', hasContent);
+}
+// ──────────────────────────────────────────────
+// GRID LOGIC — Tag-based sorting
+// ──────────────────────────────────────────────
+function normalizeTag(t) {
+  // Strip leading #, lowercase, trim — so "Bedrock", "#Bedrock", "#bedrock" all match
+  return (t || '').replace(/^#+/, '').trim().toLowerCase();
+}
+
+function hasTag(app, keyword) {
+  if (!Array.isArray(app.tags)) return false;
+  const kw = keyword.toLowerCase();
+  return app.tags.some(t => normalizeTag(t) === kw || normalizeTag(t).includes(kw));
+}
+
+function getCategories(app) {
+  const cats = [];
+  if (hasTag(app, 'java')) cats.push('java');
+  if (hasTag(app, 'bedrock')) cats.push('bedrock');
+  if (cats.length === 0) cats.push('home');
+  return cats;
+}
+
+function buildGrids() {
+  const q = searchQuery.trim().toLowerCase();
+
+  const grids = { home: [], java: [], bedrock: [] };
+  for (const app of allApps) {
+    if (q && !app.name.toLowerCase().includes(q) && !(app.desc||'').toLowerCase().includes(q)) continue;
+    const cats = getCategories(app);
+    for (const cat of cats) {
+      if (grids[cat]) grids[cat].push(app);
+    }
+    // home always shows all apps (handled below)
+  }
+
+  // Home = all apps matching search
+  const homeApps = q
+    ? allApps.filter(a => a.name.toLowerCase().includes(q) || (a.desc||'').toLowerCase().includes(q))
+    : allApps;
+
+  renderGrid('home', homeApps);
+  renderGrid('java', grids.java);
+  renderGrid('bedrock', grids.bedrock);
+}
+
+function renderGrid(tab, apps) {
+  const grid = document.getElementById('grid-' + tab);
+  const empty = document.getElementById('empty-' + tab);
+  grid.innerHTML = '';
+
+  if (apps.length === 0) {
+    empty.classList.add('show');
+    return;
+  }
+  empty.classList.remove('show');
+
+  for (const app of apps) {
+    grid.appendChild(createCard(app));
+  }
+}
+
+function createCard(app) {
+  const card = document.createElement('div');
+  card.className = 'app-card';
+
+  if (app.version) {
+    const v = document.createElement('div');
+    v.className = 'version-tag';
+    v.textContent = app.version;
+    card.appendChild(v);
+  }
+
+  const iconWrap = document.createElement('div');
+  iconWrap.className = 'icon-wrap';
+
+  const letter = document.createElement('div');
+  letter.className = 'neon-letter';
+  letter.textContent = (app.name || '?').charAt(0).toUpperCase();
+  iconWrap.appendChild(letter);
+
+  if (app.img && app.img.trim() && app.img !== 'none') {
+    const img = document.createElement('img');
+    img.alt = app.name;
+    img.onload  = () => { img.classList.add('loaded'); letter.style.display = 'none'; };
+    img.onerror = () => { img.remove(); letter.style.display = ''; };
+    img.src = app.img; // set src AFTER handlers
+    iconWrap.appendChild(img);
+  }
+
+  card.appendChild(iconWrap);
+
+  const name = document.createElement('div');
+  name.className = 'app-name';
+  name.textContent = app.name || '';
+  card.appendChild(name);
+
+  card.onclick = () => showDetails(app);
+  return card;
+}
+
+// ──────────────────────────────────────────────
+// DETAILS PANEL
+// ──────────────────────────────────────────────
+function showDetails(app) {
+  const panel = document.getElementById('detailsPanel');
+  const letter = document.getElementById('detLetter');
+  const img = document.getElementById('detImg');
+
+  letter.textContent = (app.name || '?').charAt(0).toUpperCase();
+  img.classList.remove('loaded');
+  img.src = '';
+
+  if (app.img && app.img.trim() && app.img !== 'none') {
+    img.src = app.img;
+    img.alt = app.name;
+    img.onload = () => { img.classList.add('loaded'); letter.style.display = 'none'; };
+    img.onerror = () => { letter.style.display = ''; };
+  }
+  letter.style.display = '';
+
+  document.getElementById('detTitle').textContent = app.name || '';
+  document.getElementById('detDesc').innerHTML = linkify(app.desc || '');
+  document.getElementById('detLink').href = app.url || '#';
+
+  const tagsEl = document.getElementById('detTags');
+  tagsEl.innerHTML = '';
+  if (Array.isArray(app.tags)) {
+    app.tags.forEach(t => {
+      const span = document.createElement('span');
+      span.className = 'det-tag';
+      span.textContent = t.startsWith('#') ? t : '#' + t;
+      tagsEl.appendChild(span);
+    });
+  }
+
+  panel.classList.add('open');
+}
+
+function closeDetails() {
+  document.getElementById('detailsPanel').classList.remove('open');
+}
+
+// ──────────────────────────────────────────────
+// TAB SWITCHING
+// ──────────────────────────────────────────────
+const TAB_TITLES = {
+  home: 'NEBULA OS',
+  acc: 'ACCOUNT GEN',
+  java: 'JAVA EDITION',
+  bedrock: 'BEDROCK EDITION',
+  settings: 'SETTINGS'
+};
+
+function switchTab(tab, el) {
+  playThock();
+  currentTab = tab;
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const pg = document.getElementById('page-' + tab);
+  if (pg) pg.classList.add('active');
+  document.getElementById('page-title').textContent = TAB_TITLES[tab] || tab.toUpperCase();
+  closeDetails();
+  // Close sidebar on mobile
+  if (window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('open');
+}
+
+// ──────────────────────────────────────────────
+// SEARCH
+// ──────────────────────────────────────────────
+function filterApps() {
+  searchQuery = document.getElementById('searchInput').value;
+  buildGrids();
+}
+
+// ──────────────────────────────────────────────
+// SETTINGS - INFO PANEL
+// ──────────────────────────────────────────────
+function updateInfoPanel() {
+  document.getElementById('info-count').textContent = allApps.length;
+  document.getElementById('info-java').textContent = allApps.filter(a => hasTag(a, 'java')).length;
+  document.getElementById('info-bedrock').textContent = allApps.filter(a => hasTag(a, 'bedrock')).length;
+  // Try to read version from data if present
+  const v = window._dataVersion || '1.0.0';
+  document.getElementById('info-version').textContent = v;
+}
+
+// ──────────────────────────────────────────────
+// SIDEBAR TOGGLE (mobile)
+// ──────────────────────────────────────────────
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  const sidebar = document.getElementById('sidebar');
+  const ham = document.getElementById('hamburger');
+  if (window.innerWidth <= 768 && sidebar.classList.contains('open')) {
+    if (!sidebar.contains(e.target) && e.target !== ham) {
+      sidebar.classList.remove('open');
+    }
+  }
+});
+
+// ──────────────────────────────────────────────
+// INIT
+// ──────────────────────────────────────────────
+(async () => {
+  // Restore bg preference
+  try {
+    const saved = parseInt(localStorage.getItem('nebula_bg'));
+    if (saved === 2) currentBg = 2;
+  } catch(e) {}
+
+  startBg(currentBg);
+  await loadData();
+
+  // Hide loader after short delay
+  setTimeout(() => {
+    document.getElementById('loader').classList.add('hidden');
+    setTimeout(() => document.getElementById('loader').remove(), 600);
+  }, 1000);
+})();
+</script>
+</body>
+</html>
